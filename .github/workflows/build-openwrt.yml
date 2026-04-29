@@ -58,7 +58,16 @@ jobs:
       run: cd openwrt && make download -j$(nproc)
 
     - name: Compile
-      run: cd openwrt && make -j$(nproc) V=s || make -j1 V=s
+      run: |
+        export FORCE_UNSAFE_CONFIGURE=1
+        export ERROR_SILENT=0
+        cd openwrt
+        make -j1 V=s 2>&1 | tee compile.log | grep -E "(error:|Error|package/|Build of|Compilation)" || true
+        if [ ${PIPESTATUS[0]} -ne 0 ]; then
+          echo "Compilation failed. Last 100 lines of log:"
+          tail -100 compile.log
+          exit 1
+        fi
 
     - name: Collect
       run: |
