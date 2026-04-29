@@ -1,10 +1,6 @@
 #!/bin/bash
-# diy-part2.sh - 插件集成与依赖修正
-
-# 克隆 DDNS‑GO
+# 克隆 DDNS-GO 和 iStore
 git clone https://github.com/sirpdboy/luci-app-ddns-go package/ddns-go || true
-
-# 克隆 iStore
 git clone https://github.com/linkease/istore package/istore || true
 
 # 修复 iStore 依赖
