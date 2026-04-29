@@ -1,14 +1,13 @@
-# === coolsnowwolf/lede 内置 feeds（已包含官方包，无需额外添加）===
+# coolsnowwolf/lede 原生 feeds
 src-git-full packages https://github.com/coolsnowwolf/packages
 src-git-full luci https://github.com/coolsnowwolf/luci
 src-git-full routing https://github.com/coolsnowwolf/routing
 
-# === 第三方插件合集（含 passwall/passwall2/ssr-plus 等）===
+# 第三方插件合集（已含 passwall/passwall2/ssr-plus/openclash/filebrowser 等）
 src-git kenzo https://github.com/kenzok8/openwrt-packages
 src-git small https://github.com/kenzok8/small
 
-# === iStore 应用商店 ===
-src-git istore https://github.com/linkease/istore;main
-
-# === DDNS‑GO（多域名商支持）===
-src-git ddnsgo https://github.com/sirpdboy/luci-app-ddns-go
+# 下面两个不加，因为 kenzo 已全覆盖，避免重复
+# src-git passwall ... （已失效）
+# src-git helloworld ... （kenzo 内有）
+# iStore 和 DDNS-GO 放到 diy-part2.sh 中手动拉取，更可控
