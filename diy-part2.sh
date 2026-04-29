@@ -1,9 +1,13 @@
 #!/bin/bash
-# 克隆其他常用插件源码，确保最新
-git clone https://github.com/sirpdboy/luci-app-ddns-go package/ddns-go
-git clone https://github.com/linkease/istore package/istore
+# diy-part2.sh - 插件集成与依赖修正
 
-# 修复 iStore 依赖 (确宝应用商店内软件可以安装)
+# 克隆 DDNS‑GO
+git clone https://github.com/sirpdboy/luci-app-ddns-go package/ddns-go || true
+
+# 克隆 iStore
+git clone https://github.com/linkease/istore package/istore || true
+
+# 修复 iStore 依赖
 if [ -f package/istore/luci-app-store/Makefile ]; then
     if ! grep -q "luci-lib-taskd" package/istore/luci-app-store/Makefile; then
         sed -i '/DEPENDS:=/ s/$/ +luci-lib-taskd/' package/istore/luci-app-store/Makefile
