@@ -84,3 +84,20 @@ jobs:
       with:
         name: OpenWrt_x86_Plus_Full
         path: openwrt/artifacts/
+
+    # ---------- 自动发布到 Releases ----------
+    - name: Create Release and Upload Assets
+      uses: softprops/action-gh-release@v2
+      if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      with:
+        tag_name: v${{ github.run_number }}
+        name: "OpenWrt x86 Build ${{ github.run_number }}"
+        body: |
+          🚀 自动编译 x86 固件
+          📦 包含插件：PassWall/PassWall2/OpenClash/SSR-Plus/Docker/NAS/AI/VPN/流控/iStore 等
+          🔑 默认 IP：192.168.2.1  密码：password
+        files: openwrt/artifacts/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
