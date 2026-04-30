@@ -1,4 +1,7 @@
 #!/bin/bash
+# 移除冲突的 autosamba（与 luci-app-samba4 冲突）
+rm -rf package/lean/autosamba
+
 # 拉取 iStore 商店
 if [ ! -d package/istore ]; then
     git clone --depth=1 https://github.com/linkease/istore package/istore || true
@@ -19,6 +22,6 @@ if [ -f package/istore/luci-app-store/Makefile ]; then
     fi
 fi
 
-# 高并发优化（路由用）
+# 高并发优化
 echo "net.core.somaxconn=65535" >> package/base-files/files/etc/sysctl.conf
 echo "net.ipv4.tcp_max_syn_backlog=65535" >> package/base-files/files/etc/sysctl.conf
