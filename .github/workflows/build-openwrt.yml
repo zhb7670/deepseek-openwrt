@@ -55,21 +55,21 @@ jobs:
     - name: Load custom config
       run: cp .config openwrt/ && cd openwrt && make defconfig
 
-    - name: Download all sources (single thread, no timeout)
+    - name: Download all sources
       run: cd openwrt && make download -j1 V=s
 
-    # 编译：先双线程，失败自动回退单线程
-    - name: Compile firmware (2 jobs first, then fallback)
+    - name: Compile firmware (2 jobs first, automatically fallback to 1)
       run: |
         export FORCE_UNSAFE_CONFIGURE=1
         cd openwrt
-        echo "Compiling with 2 parallel jobs..."
-        if make -j2 V=sc 2>&1 | tee compile.log | grep -E "(error:|Error|make\[.*\]|package/)" || true
-        then
-          echo "Build succeeded with -j2"
-        else
-          echo "Build failed with -j2, retrying with single thread..."
+        echo "Starting compilation with 2 parallel jobs..."
+        # 用 PIPESTATUS 准确捕获 make 的退出码，同时过滤界面输出避免被截断
+        make -j2 V=s 2>&1 | tee compile.log | grep -a -E "(error:|Error|make\[.*\]|package/)" || true
+        if [ ${PIPESTATUS[0]} -ne 0 ]; then
+          echo "Compilation failed with -j2, retrying with single job..."
           make -j1 V=s 2>&1 | tee compile-single.log
+        else
+          echo "Compilation succeeded with -j2!"
         fi
       env:
         CCACHE_DISABLE: 1
