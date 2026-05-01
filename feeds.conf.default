@@ -7,7 +7,5 @@ src-git-full routing https://github.com/coolsnowwolf/routing
 src-git kenzo https://github.com/kenzok8/openwrt-packages
 src-git small https://github.com/kenzok8/small
 
-# 下面两个不加，因为 kenzo 已全覆盖，避免重复
-# src-git passwall ... （已失效）
-# src-git helloworld ... （kenzo 内有）
-# iStore 和 DDNS-GO 放到 diy-part2.sh 中手动拉取，更可控
+# iStore 商店（必须保留，保证依赖完整）
+src-git istore https://github.com/linkease/istore;main
