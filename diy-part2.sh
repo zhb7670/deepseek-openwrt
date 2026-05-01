@@ -6,17 +6,20 @@ rm -rf package/lean/autosamba
 [ ! -d package/ddns-go ] && git clone --depth=1 https://github.com/sirpdboy/luci-app-ddns-go package/ddns-go || true
 
 # ---------- iStore 完整修复 ----------
-# 拉取最新 istore 源码
 rm -rf package/istore
 git clone --depth=1 https://github.com/linkease/istore package/istore
 
-# 核心修复：强制编译 taskd 并确保路径正确
+# 1. 修正 taskd 输出路径为 /usr/bin/taskd
 if [ -f package/istore/taskd/Makefile ]; then
-    # 修改 Makefile 使 taskd 输出到 /usr/bin/taskd
     sed -i 's|/usr/libexec/taskd|/usr/bin/taskd|g' package/istore/taskd/Makefile
 fi
 
-# 确保 luci-app-store 依赖 taskd
+# 2. 同步修正 taskd 自带启动脚本中的路径
+if [ -f package/istore/taskd/files/taskd.init ]; then
+    sed -i 's|/usr/libexec/taskd|/usr/bin/taskd|g' package/istore/taskd/files/taskd.init
+fi
+
+# 3. 确保 luci-app-store 声明对 taskd 的依赖
 if [ -f package/istore/luci-app-store/Makefile ]; then
     if ! grep -q "taskd" package/istore/luci-app-store/Makefile; then
         sed -i '/DEPENDS:=/ s/$/ +taskd/' package/istore/luci-app-store/Makefile
@@ -29,11 +32,12 @@ if [ -f package/istore/luci-app-store/Makefile ]; then
     fi
 fi
 
-# ---------- filebrowser 修复 ----------
-# 确保 filebrowser 主程序被编译（已在 .config 中勾选）
-# 如果 kenzok8 源里的 filebrowser 有冲突，强制使用我们自己下载的稳定版
-# 这里不做额外下载，完全信任 feeds 编译
+# 4. 预备必要的目录（修复本次编译错误）
+mkdir -p files/etc/uci-defaults files/etc/init.d
 
-# 网络优化
+# 5. 预置 iStore 身份文件
+echo '{"arch":"x86_64","uid":"000000000000000"}' > files/etc/.app_store.id
+
+# 6. 网络与并发优化
 echo "net.core.somaxconn=65535" >> files/etc/sysctl.conf
 echo "net.ipv4.tcp_max_syn_backlog=65535" >> files/etc/sysctl.conf
