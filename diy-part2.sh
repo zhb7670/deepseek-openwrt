@@ -1,95 +1,52 @@
 #!/bin/bash
 set -e
+
 # 移除冲突的 autosamba
 rm -rf package/lean/autosamba
 
 # 拉取 DDNS-GO
 [ ! -d package/ddns-go ] && git clone --depth=1 https://github.com/sirpdboy/luci-app-ddns-go package/ddns-go || true
 
-# ========== 创建文件覆盖目录 ==========
-mkdir -p files/usr/bin files/etc/init.d files/etc/uci-defaults
-mkdir -p files/usr/lib/lua/luci/controller
-mkdir -p files/usr/lib/lua/luci/model/cbi
-mkdir -p files/usr/lib/lua/luci/view
+# ========== FileBrowser 版（支持自动下载二进制）==========
+echo ">>> 集成 luci-app-filebrowser（自动下载版）..."
+rm -rf package/luci-app-filebrowser
+git clone --depth=1 https://github.com/kenzok78/luci-app-filebrowser package/luci-app-filebrowser
 
-# ========== 1. iStore 完整预置 ==========
-echo ">>> 处理 iStore..."
+# ========== iStore 稳定集成（离线 ipk 安装）==========
+echo ">>> 集成 iStore（离线安装模式）..."
+mkdir -p files/tmp/istore_ipk
 
-# 下载可靠的 taskd 二进制 (备用多个源)
-wget -q -O files/usr/bin/taskd https://raw.githubusercontent.com/zhb7670/deepseek-openwrt/main/bins/taskd || \
-wget -q -O files/usr/bin/taskd https://github.com/linkease/taskd/releases/download/0.1.0/taskd_linux_amd64 || \
-echo "Warning: taskd download failed, please check network"
-chmod +x files/usr/bin/taskd 2>/dev/null || true
+# 下载必要的 ipk 包（直接放入固件，避免在线拉取失败）
+wget -q -O files/tmp/istore_ipk/taskd.ipk https://github.com/linkease/taskd/releases/download/0.1.0/taskd_1.0.3-1_x86_64.ipk || \
+wget -q -O files/tmp/istore_ipk/taskd.ipk https://raw.githubusercontent.com/zhb7670/deepseek-openwrt/main/bins/taskd_1.0.3-1_x86_64.ipk || \
+echo "Warning: taskd ipk download failed"
 
-# 预置 iStore LuCI 控制器 (关键)
-cat > files/usr/lib/lua/luci/controller/store.lua << 'EOF'
-module("luci.controller.store", package.seeall)
-function index()
-    entry({"admin", "services", "store"}, alias("admin", "services", "store", "main"), _("iStore"), 10).dependent = true
-    entry({"admin", "services", "store", "main"}, form("store/main"), _("Store"), 10).leaf = true
-end
+wget -q -O files/tmp/istore_ipk/luci-app-store.ipk https://github.com/linkease/istore/releases/download/0.1.32-1/luci-app-store_0.1.32-1_all.ipk || \
+echo "Warning: luci-app-store ipk download failed"
+
+wget -q -O files/tmp/istore_ipk/luci-lib-taskd.ipk https://github.com/linkease/istore/releases/download/0.1.32-1/luci-lib-taskd_1.0.25_all.ipk || \
+echo "Warning: luci-lib-taskd ipk download failed"
+
+wget -q -O files/tmp/istore_ipk/luci-i18n-istore-zh-cn.ipk https://github.com/linkease/istore/releases/download/0.1.32-1/luci-i18n-istore-zh-cn_1.0.0-1_all.ipk || \
+echo "Warning: zh-cn ipk download failed"
+
+# 创建首次启动自动安装脚本
+mkdir -p files/etc/uci-defaults
+cat > files/etc/uci-defaults/99-install-istore << 'EOF'
+#!/bin/sh
+IPK_DIR="/tmp/istore_ipk"
+if [ -d "$IPK_DIR" ]; then
+    for ipk in "$IPK_DIR"/*.ipk; do
+        [ -f "$ipk" ] && opkg install "$ipk"
+    done
+    rm -rf "$IPK_DIR"
+fi
 EOF
+chmod +x files/etc/uci-defaults/99-install-istore
 
-# iStore 模型
-cat > files/usr/lib/lua/luci/model/cbi/store/main.lua << 'EOF'
-f = SimpleForm("store", _("iStore"))
-f.reset = false
-f.submit = false
-f:append(Template("store/main"))
-return f
-EOF
-
-# iStore 视图 (从 istore 源码提取，这里直接嵌入一个简单框架，实际界面由 /www/luci-static/istore 提供)
-cat > files/usr/lib/lua/luci/view/store/main.htm << 'EOF'
-<%+header%>
-<div id="istore"></div>
-<script src="/luci-static/istore/vendor.js"></script>
-<script src="/luci-static/istore/index.js"></script>
-<link rel="stylesheet" href="/luci-static/istore/style.css">
-<%+footer%>
-EOF
-
-# 预置身份文件
-echo '{"arch":"x86_64","uid":"000000000000000"}' > files/etc/.app_store.id
-
-# taskd 启动脚本
-cat > files/etc/init.d/taskd << 'EOF'
-#!/bin/sh /etc/rc.common
-START=99
-start() {
-    /usr/bin/taskd &
-}
-EOF
-chmod +x files/etc/init.d/taskd
-
-# 自动启动 taskd
-ln -sf ../init.d/taskd files/etc/rc.d/S99taskd
-
-# ========== 2. FileBrowser 完整预置 ==========
-echo ">>> 处理 FileBrowser..."
-# 直接从 kenzok8 的源码中提取控制器，如果没有则创建
-# 大多数 feeds 会提供控制器，但为了保险，我们自己写一份标准控制器
-cat > files/usr/lib/lua/luci/controller/filebrowser.lua << 'EOF'
-module("luci.controller.filebrowser", package.seeall)
-function index()
-    entry({"admin", "services", "filebrowser"}, alias("admin", "services", "filebrowser", "overview"), _("File Browser"), 20).dependent = true
-    entry({"admin", "services", "filebrowser", "overview"}, template("filebrowser/overview"), _("Overview"), 10).leaf = true
-end
-EOF
-
-mkdir -p files/usr/lib/lua/luci/view/filebrowser
-cat > files/usr/lib/lua/luci/view/filebrowser/overview.htm << 'EOF'
-<%+header%>
-<div class="cbi-map">
-    <h2><%: File Browser %></h2>
-    <p><a href="http://<%=luci.http.getenv("SERVER_NAME")%>:8080" target="_blank"><%: Open File Browser %></a></p>
-    <p><%: Default username/password: admin/admin %></p>
-</div>
-<%+footer%>
-EOF
-
-# ========== 3. 网络优化 ==========
+# ========== 网络优化 ==========
+mkdir -p files/etc
 echo "net.core.somaxconn=65535" >> files/etc/sysctl.conf
 echo "net.ipv4.tcp_max_syn_backlog=65535" >> files/etc/sysctl.conf
 
-echo ">>> 自定义文件覆盖完毕！"
+echo ">>> 所有自定义组件集成完毕！"
