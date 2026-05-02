@@ -45,9 +45,14 @@ jobs:
         cd openwrt && bash diy-part1.sh
 
     - name: Update and install feeds
-      run: cd openwrt && ./scripts/feeds update -a && ./scripts/feeds install -a
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+        # 官方推荐：从 istore feed 安装 luci-app-store
+        ./scripts/feeds install -p istore luci-app-store
 
-    - name: DIY part2 (add iStore, DDNS-GO, fix deps)
+    - name: DIY part2 (add DDNS-GO, filebrowser prebuilt)
       run: |
         cp diy-part2.sh openwrt/
         cd openwrt && bash diy-part2.sh
